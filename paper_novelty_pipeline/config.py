@@ -23,8 +23,15 @@ GROBID_URL = os.getenv("GROBID_URL", "http://localhost:8070/api/processFulltextD
 # OpenReview URL
 OPENREVIEW_PDF_URL = "https://openreview.net/pdf"
 
-# Wispaper API Configuration
+# Wispaper API Configuration (legacy; Phase2 now uses PubMed E-utilities)
 WISPAPER_API_ENDPOINT = os.getenv("WISPAPER_API_ENDPOINT", "https://gateway.wispaper.ai/api/v1/search/completions")
+
+# PubMed E-utilities Configuration (Phase2 search backend, replaces Wispaper)
+# NCBI_API_KEY: required for 10 req/s; without it PubMed allows only 3 req/s.
+NCBI_API_KEY = os.getenv("NCBI_API_KEY", "")
+NCBI_TOOL_NAME = os.getenv("NCBI_TOOL_NAME", "")
+NCBI_EMAIL = os.getenv("NCBI_EMAIL", "")
+PUBMED_MAX_RESULTS = int(os.getenv("PUBMED_MAX_RESULTS", "50"))  # per-query ESearch retmax
 
 
 # LLM API Configuration (global defaults)
