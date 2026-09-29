@@ -761,8 +761,10 @@ def create_llm_client(
     if 'openrouter.ai' in normalized_endpoint:
         normalized_provider = 'openrouter'
 
-    # Ensure endpoint has proper format with /v1 suffix for OpenAI-compatible APIs
-    if endpoint and not endpoint.endswith(('/v1', '/v1/')):
+    # Ensure endpoint has proper format with /v1 suffix for OpenAI-compatible APIs.
+    # Exception: versioned OpenAI-compatible paths like Zhipu bigmodel's /v4
+    # already carry their own version segment and must not get an extra /v1.
+    if endpoint and not endpoint.endswith(('/v1', '/v1/', '/v4', '/v4/')):
         if not endpoint.endswith('/'):
             endpoint = endpoint + '/'
         endpoint = endpoint + 'v1'
