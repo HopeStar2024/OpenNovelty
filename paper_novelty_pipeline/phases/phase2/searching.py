@@ -168,6 +168,28 @@ class PaperSearcher:
 
     # ------------------------------------------------------------------ #
 
+    def _esearch_with_fallback(self, query: str) -> List[str]:
+        """ESearch a query; on 0 hits, retry with a keyword [tiab] synthesis.
+
+        LLM-generated query variants are often full natural-language
+        sentences ("Find papers about depression and delirium ..."), which
+        PubMed phrase-matches to zero results. Falling back to a keyword
+        query built from the sentence's content terms fixes recall.
+        """
+        pmids = self.client.esearch(query)
+        if pmids:
+            return pmids
+        kw_query = " AND ".join(f"{k}[tiab]" for k in _keywords(query, limit=4))
+        if not kw_query or kw_query == query:
+            return []
+        logger.info("0 PMIDs for sentence query %r; retrying keywords: %r",
+                    query[:60], kw_query)
+        try:
+            return self.client.esearch(kw_query)
+        except PubMedError as e:
+            logger.warning("Keyword fallback failed for %r: %s", query[:60], e)
+            return []
+
     def _search_scope(
         self,
         scope: str,
@@ -183,7 +205,7 @@ class PaperSearcher:
             qhash = hashlib.md5(query.encode("utf-8")).hexdigest()[:10]
             fname = f"raw_{scope}_{qhash}.json"
             try:
-                pmids = self.client.esearch(query)
+                pmids = self._esearch_with_fallback(query)
             except PubMedError as e:
                 # Single-query failure: log, write empty file, keep going.
                 logger.error("Scope %s query failed (%r): %s", scope, query[:60], e)
