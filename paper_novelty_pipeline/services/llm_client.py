@@ -434,7 +434,13 @@ class OpenAIClient(BaseLLMClient):
             if max_tokens is not None:
                 eff_max_tokens = self._effective_max_tokens(max_tokens)
                 request_params["max_tokens"] = eff_max_tokens
-            
+
+            # Zhipu bigmodel (GLM-4.5+/GLM-5) hybrid reasoning models spend the
+            # max_tokens budget on hidden reasoning_content, leaving content
+            # empty. Disable thinking for structured pipeline calls.
+            if "bigmodel" in (self.base_url or "").lower():
+                request_params["extra_body"] = {"thinking": {"type": "disabled"}}
+
             # Add timeout to prevent hanging indefinitely
             # 120 seconds should be enough for max_tokens=8000
             resp = self.client.chat.completions.create(
@@ -510,7 +516,11 @@ class OpenAIClient(BaseLLMClient):
                 self.logger.info(f"LLM max_tokens: requested={max_tokens} -> effective={eff_max_tokens}")
             else:
                 self.logger.info("LLM max_tokens: not set (unlimited, API decides)")
-            
+
+            # Disable hybrid reasoning on Zhipu bigmodel (see note in generate()).
+            if "bigmodel" in (self.base_url or "").lower():
+                request_params["extra_body"] = {"thinking": {"type": "disabled"}}
+
             # Add timeout to prevent hanging indefinitely
             resp = self.client.chat.completions.create(
                 **request_params,
