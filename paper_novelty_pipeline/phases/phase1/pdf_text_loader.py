@@ -32,11 +32,40 @@ class PdfTextLoader:
     def __init__(self, logger: Optional[logging.Logger] = None) -> None:
         self.logger = logger or logging.getLogger(__name__)
 
+    # Plain-text manuscript formats accepted natively (no PDF detour needed).
+    _TEXT_EXTS = (".md", ".markdown", ".txt")
+
     def load(self, paper: PaperInput) -> Optional[PdfTextBundle]:
         source = self._resolve_pdf_source(paper)
         if not source:
             self.logger.error("Phase1: no PDF source available for %s", paper.paper_id)
             return None
+
+        # Native Markdown/plain-text support: read the file directly instead of
+        # converting to PDF first. The PDF path below is unchanged.
+        source_str = str(source)
+        if source_str.lower().endswith(self._TEXT_EXTS) and os.path.exists(source_str):
+            try:
+                with open(source_str, "r", encoding="utf-8") as f:
+                    raw_text = f.read()
+            except OSError as e:
+                self.logger.error("Phase1: failed to read text file %s: %s", source_str, e)
+                return None
+            if not raw_text.strip():
+                self.logger.error("Phase1: text file %s is empty", source_str)
+                return None
+            cleaned_text = pdf_processor.process_extracted_text(
+                raw_text,
+                clean_text=True,
+                truncate_refs=False,
+                max_chars=None,
+                logger=self.logger,
+            )
+            if cleaned_text is None:
+                cleaned_text = ""
+            self.logger.info("Loaded %d chars directly from text file %s",
+                             len(raw_text), source_str)
+            return PdfTextBundle(Path(source_str), raw_text, cleaned_text)
 
         result = pdf_processor.fetch_pdf(
             source,
